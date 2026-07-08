@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>code-rag</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 28px; margin-bottom: 6px; }
+  h1 .accent { color: var(--accent); }
+  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 14px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .how-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 999px;
+    padding: 7px 16px;
+    white-space: nowrap;
+    margin-top: 4px;
+  }
+  .how-link:hover { border-color: var(--accent); }
+  .search-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  input[type=text] {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 16px;
+    outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent);
+    color: #0d1117;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  .filters { display: flex; gap: 10px; margin-bottom: 24px; }
+  select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .status { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .hit {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .hit-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .hit-path { color: var(--accent); font-family: ui-monospace, monospace; }
+  .badge {
+    background: #21262d;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .score { margin-left: auto; color: var(--green); font-weight: 600; }
+  pre {
+    padding: 14px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    max-height: 340px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; text-align: center; }
+  footer code { background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <div>
+      <h1>code-<span class="accent">rag</span></h1>
+      <p class="subtitle">Busca semântica local sobre suas bases de código</p>
+    </div>
+    <a class="how-link" href="/how">Como funciona →</a>
+  </div>
+
+  <form class="search-row" id="form">
+    <input type="text" id="q" placeholder="Pergunte em linguagem natural… ex.: onde o token JWT é validado?" autofocus>
+    <button type="submit">Buscar</button>
+  </form>
+
+  <div class="filters">
+    <select id="project"><option value="">Todos os projetos</option></select>
+    <select id="lang"><option value="">Todas as linguagens</option></select>
+    <select id="topk">
+      <option value="10">10 resultados</option>
+      <option value="20">20 resultados</option>
+      <option value="50">50 resultados</option>
+    </select>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="results"></div>
+
+  <footer>MCP disponível em <code>http://localhost:8000/mcp</code></footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function esc(s) {
+  return (s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function loadFilters() {
+  try {
+    const [projects, langs] = await Promise.all([
+      fetch("/api/projects").then((r) => r.json()),
+      fetch("/api/langs").then((r) => r.json()),
+    ]);
+    for (const p of projects) {
+      $("project").insertAdjacentHTML("beforeend",
+        `<option value="${esc(p.name)}">${esc(p.name)} (${p.chunk_count} chunks)</option>`);
+    }
+    for (const l of langs) {
+      $("lang").insertAdjacentHTML("beforeend", `<option value="${esc(l)}">${esc(l)}</option>`);
+    }
+    if (projects.length === 0) {
+      $("status").textContent = "Nenhum projeto indexado ainda. Rode: make index DIR=/caminho/do/projeto";
+    }
+  } catch { /* servidor ainda subindo */ }
+}
+
+async function doSearch(ev) {
+  ev.preventDefault();
+  const q = $("q").value.trim();
+  if (!q) return;
+  $("status").textContent = "Buscando…";
+  $("results").innerHTML = "";
+  const params = new URLSearchParams({ q, top_k: $("topk").value });
+  if ($("project").value) params.set("project", $("project").value);
+  if ($("lang").value) params.set("lang", $("lang").value);
+  const t0 = performance.now();
+  try {
+    const resp = await fetch("/api/search?" + params);
+    if (!resp.ok) throw new Error(await resp.text());
+    const hits = await resp.json();
+    const ms = Math.round(performance.now() - t0);
+    $("status").textContent = `${hits.length} resultado(s) em ${ms}ms`;
+    if (hits.length === 0) {
+      $("results").innerHTML = '<div class="empty">Nada encontrado.</div>';
+      return;
+    }
+    $("results").innerHTML = hits.map((h) => `
+      <div class="hit">
+        <div class="hit-header">
+          <span class="hit-path">${esc(h.file_path)}:${h.start_line}-${h.end_line}</span>
+          <span class="badge">${esc(h.project)}</span>
+          <span class="badge">${esc(h.lang)}</span>
+          <span class="badge">${esc(h.kind)}${h.name ? " · " + esc(h.name) : ""}</span>
+          <span class="score">${(h.score * 100).toFixed(1)}%</span>
+        </div>
+        <pre>${esc(h.content)}</pre>
+      </div>`).join("");
+  } catch (err) {
+    $("status").textContent = "Erro: " + err.message;
+  }
+}
+
+$("form").addEventListener("submit", doSearch);
+loadFilters();
+</script>
+</body>
+</html>

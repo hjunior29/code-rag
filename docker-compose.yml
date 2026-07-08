@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: coderag
+      POSTGRES_PASSWORD: coderag
+      POSTGRES_DB: coderag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coderag -d coderag"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Opcional: só sobe quando COMPOSE_PROFILES=ollama no .env.
+  # O provider padrão (fastembed) não precisa deste container.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11435:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  server:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://coderag:coderag@postgres:5432/coderag
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache  # cache dos modelos fastembed (Hugging Face)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  ollama_data:
+  hf_cache:
