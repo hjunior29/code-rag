@@ -6,8 +6,9 @@
 -include .env
 
 NAME ?= $(notdir $(patsubst %/,%,$(DIR)))
+BACKUP_DIR ?= ./backups
 
-.PHONY: setup up down restart logs ps index reset-db mcp-stdio help
+.PHONY: setup up down restart logs ps index reset-db mcp-stdio backup restore help
 
 help:
 	@echo "code-rag — RAG local e agnóstico de base de código"
@@ -18,6 +19,8 @@ help:
 	@echo "  make logs                          logs do servidor"
 	@echo "  make ps                            status dos containers"
 	@echo "  make reset-db                      APAGA o banco (necessário ao trocar de modelo)"
+	@echo "  make backup                        dump do banco em $(BACKUP_DIR)"
+	@echo "  make restore FILE=x.dump           restaura um backup"
 	@echo ""
 	@echo "  UI:  http://localhost:8000    MCP: http://localhost:8000/mcp"
 
@@ -64,6 +67,21 @@ reset-db:
 	docker compose down
 	docker volume rm -f $$(basename $$PWD)_pgdata
 	@echo "✓ banco apagado. Rode 'make up' e reindexe seus projetos."
+
+backup:
+	@mkdir -p "$(BACKUP_DIR)"
+	docker compose exec -T postgres pg_dump -U coderag -d coderag -Fc -Z 6 \
+		> "$(BACKUP_DIR)/coderag-$$(date +%Y%m%d-%H%M).dump"
+	@ls -lh "$(BACKUP_DIR)" | tail -1
+	@echo "✓ backup concluído"
+
+restore:
+ifndef FILE
+	$(error Uso: make restore FILE=/caminho/do/backup.dump)
+endif
+	docker compose exec -T postgres pg_restore -U coderag -d coderag --clean --if-exists \
+		< "$(FILE)"
+	@echo "✓ banco restaurado de $(FILE)"
 
 # Servidor MCP via stdio (alternativa ao HTTP), para clientes que preferem stdio
 mcp-stdio:

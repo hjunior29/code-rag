@@ -10,6 +10,8 @@ import logging
 import time
 from pathlib import Path
 
+from tqdm import tqdm
+
 from app import db
 from app.config import settings
 from app.embeddings import get_embedder
@@ -18,6 +20,8 @@ from app.indexer.chunkers.base import Chunk
 from app.indexer.walker import read_text, walk_files
 
 logger = logging.getLogger(__name__)
+
+_BAR_FMT = "{desc:<12} {percentage:3.0f}%|{bar:40}| {n_fmt}/{total_fmt} [{elapsed}<{remaining} {rate_fmt}]"
 
 
 def _embed_text(chunk: Chunk) -> str:
@@ -38,20 +42,19 @@ async def index_path(root: str, name: str, display_path: str | None = None) -> d
     await db.ensure_base_schema()
 
     # 1. Walk + chunk
-    logger.info("indexando projeto '%s' a partir de %s", name, root_path)
+    tqdm.write(f"⚡ indexando '{name}' ({display_path or root_path})")
     files = walk_files(root_path)
-    logger.info("%d arquivos de texto encontrados", len(files))
 
     chunks: list[Chunk] = []
     parsed_files = 0
-    for path in files:
+    for path in tqdm(files, desc="📂 parsing", unit="arq", bar_format=_BAR_FMT, colour="cyan"):
         text = read_text(path)
         if text is None or not text.strip():
             continue
         rel = str(path.relative_to(root_path))
         chunks.extend(chunk_file(text, rel))
         parsed_files += 1
-    logger.info("%d chunks extraídos de %d arquivos", len(chunks), parsed_files)
+    tqdm.write(f"   {len(chunks)} chunks extraídos de {parsed_files} arquivos")
 
     if not chunks:
         raise SystemExit("Nenhum chunk extraído — o diretório tem código-fonte?")
@@ -59,12 +62,11 @@ async def index_path(root: str, name: str, display_path: str | None = None) -> d
     # 2. Detecta a dimensão do modelo e garante o schema
     embedder = get_embedder()
     dim = await embedder.detect_dim()
-    logger.info(
-        "provider=%s modelo=%s dim=%d", settings.EMBEDDING_PROVIDER, settings.EMBEDDING_MODEL, dim
-    )
+    tqdm.write(f"   modelo: {settings.EMBEDDING_MODEL} ({settings.EMBEDDING_PROVIDER}, dim={dim})")
     await db.ensure_chunks_table(dim, settings.EMBEDDING_MODEL)
 
-    # 3. Dedup: reutiliza embeddings de conteúdo inalterado
+    # 3. Dedup: reutiliza embeddings de conteúdo inalterado (índice anterior
+    #    do projeto + checkpoints de execuções interrompidas)
     pool = await db.get_pool()
     shas = [_sha(_embed_text(c)) for c in chunks]
     project_id = await pool.fetchval("SELECT id FROM projects WHERE name = $1", name)
@@ -76,20 +78,33 @@ async def index_path(root: str, name: str, display_path: str | None = None) -> d
             project_id,
         )
         reusable = {r["content_sha"]: r["emb"] for r in rows}
+    cache_rows = await pool.fetch("SELECT content_sha, embedding::text AS emb FROM embedding_cache")
+    reusable.update({r["content_sha"]: r["emb"] for r in cache_rows})
 
     to_embed = [(i, _embed_text(chunks[i])) for i, sha in enumerate(shas) if sha not in reusable]
-    logger.info("%d chunks novos para embedar (%d reutilizados)", len(to_embed), len(chunks) - len(to_embed))
+    tqdm.write(f"   {len(to_embed)} chunks novos para embedar ({len(chunks) - len(to_embed)} reutilizados ♻️)")
 
     # 4. Embed em grupos de batches paralelos, com progresso
     embeddings: dict[int, str] = {}
     group_size = settings.EMBEDDING_BATCH_SIZE * max(1, settings.EMBEDDING_CONCURRENCY)
-    for offset in range(0, len(to_embed), group_size):
-        group = to_embed[offset : offset + group_size]
-        vecs = await embedder.embed_batch([t for _, t in group])
-        for (idx, _), vec in zip(group, vecs):
-            embeddings[idx] = db.vec_literal(vec)
-        done = min(offset + group_size, len(to_embed))
-        logger.info("embeddings: %d/%d", done, len(to_embed))
+    with tqdm(
+        total=len(to_embed), desc="🧮 embeddings", unit="chunk", bar_format=_BAR_FMT, colour="green"
+    ) as bar:
+        for offset in range(0, len(to_embed), group_size):
+            group = to_embed[offset : offset + group_size]
+            vecs = await embedder.embed_batch([t for _, t in group])
+            checkpoint: list[tuple[str, str]] = []
+            for (idx, _), vec in zip(group, vecs):
+                lit = db.vec_literal(vec)
+                embeddings[idx] = lit
+                checkpoint.append((shas[idx], lit))
+            # Persiste o progresso: interrupção não perde o que já foi embedado
+            await pool.executemany(
+                "INSERT INTO embedding_cache (content_sha, embedding) VALUES ($1, $2::vector) "
+                "ON CONFLICT (content_sha) DO NOTHING",
+                checkpoint,
+            )
+            bar.update(len(group))
 
     # 5. Grava tudo numa transação (substitui o índice antigo do projeto)
     async with pool.acquire() as conn, conn.transaction():
@@ -131,6 +146,9 @@ async def index_path(root: str, name: str, display_path: str | None = None) -> d
             rows,
         )
 
+    # Índice gravado com sucesso: os checkpoints deste projeto não são mais necessários
+    await pool.execute("DELETE FROM embedding_cache WHERE content_sha = ANY($1::text[])", list(set(shas)))
+
     elapsed = time.monotonic() - started
     summary = {
         "project": name,
@@ -140,5 +158,6 @@ async def index_path(root: str, name: str, display_path: str | None = None) -> d
         "reused": len(chunks) - len(to_embed),
         "seconds": round(elapsed, 1),
     }
-    logger.info("indexação concluída: %s", summary)
+    mins, secs = divmod(int(elapsed), 60)
+    tqdm.write(f"✅ '{name}' indexado: {len(chunks)} chunks em {mins}m{secs:02d}s")
     return summary

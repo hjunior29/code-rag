@@ -7,3 +7,5 @@ venv/
 .ruff_cache/
 .mypy_cache/
 .DS_Store
+backups/
+*.dump

@@ -13,10 +13,18 @@ from app.config import settings
 from app.embeddings.base import Embedder
 
 
+# Sub-batch pequeno: limita o pico de memória do ONNX (atenção cresce
+# quadraticamente com o tamanho do batch × sequência)
+_ONNX_BATCH = 16
+
+
 class FastembedEmbedder(Embedder):
     def __init__(self) -> None:
         self._model = None
         self._lock = asyncio.Lock()
+        # ONNX já paraleliza internamente entre os cores; chamadas concorrentes
+        # só multiplicariam o uso de memória (causa de OOM em VMs pequenas)
+        self._run_lock = asyncio.Semaphore(1)
 
     async def _get_model(self):
         if self._model is None:
@@ -39,5 +47,8 @@ class FastembedEmbedder(Embedder):
     async def _embed_one_batch(self, texts: list[str]) -> list[list[float]]:
         model = await self._get_model()
         loop = asyncio.get_running_loop()
-        vectors = await loop.run_in_executor(None, lambda: list(model.embed(texts)))
+        async with self._run_lock:
+            vectors = await loop.run_in_executor(
+                None, lambda: list(model.embed(texts, batch_size=_ONNX_BATCH))
+            )
         return [v.tolist() for v in vectors]

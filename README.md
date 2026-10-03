@@ -155,6 +155,8 @@ make logs        # logs do servidor
 make ps          # status
 make down        # derruba
 make reset-db    # APAGA o banco (trocou de modelo de embedding? rode isso)
+make backup      # dump comprimido do banco (protege a carga de embeddings)
+make restore FILE=/caminho/backup.dump   # restaura um backup
 make mcp-stdio   # servidor MCP via stdio (alternativa ao HTTP)
 ```
 

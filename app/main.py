@@ -12,6 +12,9 @@ import logging
 import sys
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# Bibliotecas barulhentas: só warnings/erros
+for noisy in ("httpx", "httpcore", "huggingface_hub", "urllib3", "filelock"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def main() -> None:

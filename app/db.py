@@ -92,6 +92,7 @@ async def ensure_chunks_table(dim: int, model: str) -> None:
                 "Embeddings de modelos diferentes são incompatíveis. "
                 "Rode 'make reset-db' e reindexe tudo, ou volte a config anterior."
             )
+        await _ensure_cache_table(dim)
         return
 
     pool = await get_pool()
@@ -127,8 +128,23 @@ async def ensure_chunks_table(dim: int, model: str) -> None:
                 dim,
                 HNSW_MAX_DIM,
             )
+    await _ensure_cache_table(dim)
     await set_meta("embedding_dim", str(dim))
     await set_meta("embedding_model", model)
+
+
+async def _ensure_cache_table(dim: int) -> None:
+    """Checkpoint de embeddings durante indexações longas: se o processo morrer
+    no meio, a próxima execução retoma daqui em vez de re-embedar tudo."""
+    pool = await get_pool()
+    await pool.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS embedding_cache (
+            content_sha TEXT PRIMARY KEY,
+            embedding vector({dim}) NOT NULL
+        )
+        """
+    )
 
 
 def vec_literal(vec: list[float]) -> str:
