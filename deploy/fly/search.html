@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Configure o code-rag na sua máquina para pesquisar sua base de código.">
+  <title>Busca local · code-rag</title>
+  <script>
+    try {
+      const theme = localStorage.getItem('coderag-how-theme');
+      document.documentElement.dataset.theme = theme === 'light' || theme === 'dark' ? theme : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="/assets/theme.css">
+  <link rel="stylesheet" href="/assets/documentation.css">
+  <style>
+    .local-search{min-height:100svh;padding-top:150px}.local-search .container{max-width:760px}.local-search .command-block{margin-top:36px}.local-actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:28px}.local-actions a{display:flex;align-items:center;min-height:44px}.copy-button{text-decoration:none}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#conteudo" data-i18n="skip">Pular para o conteúdo</a>
+  <nav class="topnav" aria-label="Navegação" data-label="navigation">
+    <a class="brand" href="/">code-rag</a>
+    <div class="language" role="group" aria-label="Idioma / Language">
+      <button type="button" data-language="pt" aria-label="Português" aria-pressed="true">PT</button>
+      <button type="button" data-language="en" aria-label="English" aria-pressed="false">EN</button>
+    </div>
+    <button type="button" class="theme-button" id="theme-toggle" aria-label="Ativar tema claro">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></svg>
+    </button>
+    <a class="search-link" href="/" data-i18n="documentation">Documentação ↗</a>
+  </nav>
+  <main class="scene local-search" id="conteudo">
+    <div class="container">
+      <h1 class="title" data-i18n="title">Pesquise na sua máquina</h1>
+      <p class="deck" data-i18n="description">Este site explica como o code-rag funciona. Para pesquisar seu código, rode o projeto localmente e indexe uma pasta sua.</p>
+      <div class="command-block">
+        <div class="head" data-i18n="terminal">No seu terminal</div>
+        <pre>git clone https://github.com/hjunior29/code-rag.git
+cd code-rag
+make up
+make index DIR=/path/to/project</pre>
+      </div>
+      <div class="local-actions">
+        <a class="copy-button" href="http://localhost:8000/search" data-i18n="open">Abrir minha busca local →</a>
+        <a class="plain-link" href="/#setup" data-i18n="setup">Ver instruções e prompt de configuração</a>
+      </div>
+    </div>
+  </main>
+  <script>
+    const translations = {
+      pt: { skip: 'Pular para o conteúdo', navigation: 'Navegação', documentation: 'Documentação ↗', title: 'Pesquise na sua máquina', description: 'Este site explica como o code-rag funciona. Para pesquisar seu código, rode o projeto localmente e indexe uma pasta sua.', terminal: 'No seu terminal', open: 'Abrir minha busca local →', setup: 'Ver instruções e prompt de configuração', light: 'Ativar tema claro', dark: 'Ativar tema escuro', pageTitle: 'Busca local · code-rag' },
+      en: { skip: 'Skip to content', navigation: 'Navigation', documentation: 'Documentation ↗', title: 'Search on your machine', description: 'This website explains how code-rag works. To search your code, run the project locally and index a folder on your machine.', terminal: 'In your terminal', open: 'Open my local search →', setup: 'Setup instructions and assistant prompt', light: 'Switch to light theme', dark: 'Switch to dark theme', pageTitle: 'Local search · code-rag' }
+    };
+    const save = (key, value) => { try { localStorage.setItem(key, value); } catch (_) {} };
+    let language = 'pt';
+    try { language = localStorage.getItem('coderag-how-language') === 'en' ? 'en' : 'pt'; } catch (_) {}
+    const themeButton = document.getElementById('theme-toggle');
+    function renderTheme() {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      themeButton.setAttribute('aria-label', translations[language][dark ? 'light' : 'dark']);
+      themeButton.querySelector('svg').innerHTML = dark ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>' : '<path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/>';
+    }
+    function renderLanguage() {
+      const text = translations[language];
+      document.documentElement.lang = language === 'en' ? 'en' : 'pt-BR';
+      document.title = text.pageTitle;
+      document.querySelector('meta[name="description"]').content = text.description;
+      document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = text[element.dataset.i18n]; });
+      document.querySelectorAll('[data-label]').forEach(element => { element.setAttribute('aria-label', text[element.dataset.label]); });
+      document.querySelectorAll('[data-language]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.language === language)); });
+      renderTheme();
+    }
+    document.querySelectorAll('[data-language]').forEach(button => button.addEventListener('click', () => { language = button.dataset.language; save('coderag-how-language', language); renderLanguage(); }));
+    themeButton.addEventListener('click', () => { const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = theme; save('coderag-how-theme', theme); renderTheme(); });
+    renderLanguage();
+  </script>
+</body>
+</html>

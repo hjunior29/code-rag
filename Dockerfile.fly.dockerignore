@@ -1,0 +1,13 @@
+**
+!Dockerfile.fly
+!Dockerfile.fly.dockerignore
+!app/
+!app/web/
+!app/web/static/
+!app/web/static/index.html
+!app/web/static/assets/
+!app/web/static/assets/**
+!deploy/
+!deploy/fly/
+!deploy/fly/nginx.conf
+!deploy/fly/search.html

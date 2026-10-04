@@ -6,7 +6,7 @@ A reference implementation of code retrieval for anyone building something simil
 
 The default setup runs embeddings on your CPU with FastEmbed and stores vectors in PostgreSQL with pgvector. Everything runs in Docker; no hosted embedding service is required. Other embedding providers are configurable.
 
-[Quickstart](#quickstart) · [How it works](#how-it-works) · [MCP](#connect-an-mcp-client) · [Configuration](#configuration) · [Commands](#commands)
+[Interactive documentation](https://code-rag.fly.dev/) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [MCP](#connect-an-mcp-client) · [Configuration](#configuration) · [Commands](#commands)
 
 ---
 
@@ -217,6 +217,21 @@ Makefile                        # Local workflow commands
 ```
 
 The frontend uses plain HTML, CSS, JavaScript, and SVG, with no frontend build step. Diagrams use native browser animations, support reduced motion, and suspend the opening animation when it is offscreen or the tab is hidden.
+
+## Publishing the documentation
+
+The public documentation is available at **[code-rag.fly.dev](https://code-rag.fly.dev/)**. This deployment serves the interactive explanation through Nginx; `/search` explains how to run and open the real search locally. It does not host a database, embeddings, indexed source code, or MCP tools.
+
+[Dockerfile.fly](Dockerfile.fly) packages only the public pages and assets. [fly.toml](fly.toml) configures one shared CPU with 256 MB of memory in São Paulo, HTTPS, a health check, and automatic stop/start when idle. The regular Docker Compose setup continues to run the complete local application.
+
+To deploy updates to the existing Fly app, install the Fly CLI, sign in to the account that owns it, and run:
+
+```bash
+fly auth login
+fly deploy --ha=false
+```
+
+For a fork, create your own Fly app and update the `app` name in `fly.toml` before deploying. See [Fly's static website guide](https://fly.io/docs/languages-and-frameworks/static/) for the deployment workflow.
 
 ## Adapting the implementation
 
