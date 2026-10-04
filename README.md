@@ -1,187 +1,223 @@
 # code-rag
 
-RAG local e **agnóstico** de base de código: aponte para qualquer pasta no seu computador, indexe, e consulte por linguagem natural — via **MCP** (para agentes de IA como o Claude Code) ou pela **UI web**.
+**Explore a codebase through natural-language search. Understand how the retrieval works.**
 
-Tudo roda **100% local** via Docker: Postgres + pgvector para busca vetorial, embeddings in-process via fastembed/ONNX (por padrão — sem nenhum serviço externo), e um servidor FastAPI que expõe UI, API JSON e MCP.
+A reference implementation of code retrieval for anyone building something similar. Point it at a local folder, index the source files, and retrieve relevant snippets through a browser, a JSON API, or an MCP client.
 
-## Arquitetura
+The default setup runs embeddings on your CPU with FastEmbed and stores vectors in PostgreSQL with pgvector. Everything runs in Docker; no hosted embedding service is required. Other embedding providers are configurable.
 
-```mermaid
-flowchart TB
-    subgraph host["💻 Sua máquina"]
-        DIR["📁 Qualquer pasta de código<br/>(montada read-only no container)"]
-        CLAUDE["🤖 Claude Code / agentes de IA"]
-        BROWSER["🌐 Navegador"]
-    end
+[Quickstart](#quickstart) · [How it works](#how-it-works) · [MCP](#connect-an-mcp-client) · [Configuration](#configuration) · [Commands](#commands)
 
-    subgraph docker["🐳 Docker (make up)"]
-        subgraph server["server :8000"]
-            UI["UI web<br/><code>/</code>"]
-            API["API JSON<br/><code>/api/*</code>"]
-            MCP["MCP streamable HTTP<br/><code>/mcp</code>"]
-            SEARCH["search.py<br/>busca vetorial + símbolos"]
-            INDEXER["indexer/pipeline.py<br/>walk → chunk → dedup → embed"]
-            EMB["embeddings/<br/>camada agnóstica"]
-        end
-        PG[("🐘 Postgres + pgvector<br/>chunks · projects · meta<br/>índice HNSW cosine")]
-        OLLAMA["🦙 Ollama<br/>(opcional, profile)"]
-    end
-
-    subgraph providers["Providers de embedding (escolha 1 via .env)"]
-        FE["fastembed<br/>ONNX in-process<br/>(padrão, zero serviços)"]
-        OL["ollama"]
-        OA["openai-compatible<br/>OpenAI · LM Studio · vLLM"]
-        GM["gemini"]
-    end
-
-    DIR -- "make index DIR=…" --> INDEXER
-    INDEXER --> EMB
-    SEARCH --> EMB
-    EMB -.-> FE
-    EMB -.-> OL
-    EMB -.-> OA
-    EMB -.-> GM
-    OL --- OLLAMA
-    INDEXER -- "INSERT chunks + vetores" --> PG
-    SEARCH -- "ANN cosine (&lt;=&gt;)" --> PG
-    UI --> SEARCH
-    API --> SEARCH
-    MCP --> SEARCH
-    CLAUDE <--> MCP
-    BROWSER <--> UI
-```
-
-### Fluxo de indexação (`make index DIR=/pasta`)
-
-```mermaid
-flowchart LR
-    A["📁 walk_files()<br/>ignora .git, node_modules,<br/>vendor, builds, locks, binários"] --> B{"extensão tem<br/>gramática<br/>tree-sitter?"}
-    B -- "py · go · ts/tsx · js" --> C["🌳 chunk por símbolo<br/>função · método · classe<br/>struct · interface · enum"]
-    B -- "resto (rust, vue, sql,<br/>md, yaml, java…)" --> D["📄 chunk por janela<br/>~100 linhas com<br/>15 de sobreposição"]
-    C --> E["#️⃣ sha256 do conteúdo<br/>de cada chunk"]
-    D --> E
-    E --> F{"sha já existe<br/>no banco?"}
-    F -- "sim (código não mudou)" --> G["♻️ reutiliza embedding<br/>(reindexar é barato)"]
-    F -- "não" --> H["🧮 embed_batch()<br/>provider configurado<br/>dimensão auto-detectada"]
-    G --> I[("💾 transação atômica:<br/>substitui o índice<br/>do projeto no pgvector")]
-    H --> I
-```
-
-### Fluxo de consulta
-
-```mermaid
-sequenceDiagram
-    participant C as Claude Code / UI
-    participant S as server :8000
-    participant E as embedder (provider)
-    participant P as Postgres + pgvector
-
-    C->>S: search_code("onde o token é validado?")
-    S->>E: embed_query(texto)
-    E-->>S: vetor da pergunta
-    S->>P: SELECT … ORDER BY embedding <=> $vetor<br/>(cosine ANN via HNSW, filtros project/lang)
-    P-->>S: top-k chunks + score
-    S-->>C: arquivo:linha, símbolo, código, score
-```
+---
 
 ## Quickstart
 
+You need **Docker with Compose** and **Make**. With Docker running:
+
 ```bash
-make up                                  # sobe postgres + servidor
-make index DIR=/caminho/da/sua/base      # indexa qualquer pasta (nome = basename da pasta)
-make index DIR=/outro/projeto NAME=meu-projeto   # nome customizado
+git clone https://github.com/hjunior29/code-rag.git
+cd code-rag
+
+make up
+make index DIR=/absolute/path/to/your/project
 ```
 
-> Na primeira indexação o modelo de embedding (~130MB) é baixado do Hugging Face e cacheado num volume Docker.
+`make up` creates `.env` from [.env.example](.env.example) if it does not exist, then builds and starts the server and database. The first indexing run downloads the embedding model from Hugging Face and caches it in a Docker volume.
 
-Pronto:
+| Open | What you will find |
+| --- | --- |
+| [Interactive documentation](http://localhost:8000/) | An explanation of indexing, embeddings, similarity, and retrieval, with diagrams you can manipulate. |
+| [Local search](http://localhost:8000/search) | Real search over the projects you have indexed, with project and language filters. |
+| [API documentation](http://localhost:8000/docs) | FastAPI's generated documentation for the JSON endpoints. |
 
-- **UI**: http://localhost:8000 — barra de busca em linguagem natural
-- **MCP**: http://localhost:8000/mcp
+The website explains the implementation; indexing runs on your machine through the CLI. The documentation includes a copyable setup prompt for an assistant, with instructions to ask which folder you want to index. Both documentation and search support English, Portuguese, and light and dark themes.
 
-### Registrar o MCP no Claude Code
+### Index another project
+
+```bash
+# Use the folder name as the project name
+make index DIR=/absolute/path/to/another/project
+
+# Choose a name explicitly
+make index DIR=/absolute/path/to/another/project NAME=my-project
+```
+
+The source folder is mounted **read-only** during indexing. Run the same command after changing your code to refresh the index. A project name identifies one index: indexing another folder under the same name replaces its previous contents.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Source["Local source folder"] --> Indexer["Walk and chunk files"]
+    Indexer --> Cache["Reuse cached embeddings"]
+    Cache --> Embedder["Embedding provider"]
+    Embedder --> Database[("PostgreSQL + pgvector")]
+
+    Browser["Browser /search"] --> Search["Retrieval"]
+    API["JSON API"] --> Search
+    Agent["MCP client"] --> Search
+    Search --> Embedder
+    Search --> Database
+    Search --> Results["Code, file, symbol, lines, score"]
+```
+
+### From files to vectors
+
+1. **Discover files.** Walk the source folder, skipping hidden directories, dependency and build directories, lockfiles, binary content, unsupported file types, and files larger than 512 KB by default.
+2. **Extract snippets.** Tree-sitter extracts symbols from Python, Go, Java, TypeScript/TSX, and JavaScript. Other supported text files—and files without extracted symbols—use overlapping windows of 100 lines with 15 lines of overlap by default.
+3. **Reuse previous work.** Hash the embedding input, which includes the file path, symbol name, configured prefix, and snippet content. Unchanged inputs reuse vectors from the previous index or saved checkpoints.
+4. **Embed new inputs.** Generate vectors with the configured provider. Completed batches are checkpointed, so an interrupted run can reuse them on the next attempt.
+5. **Replace the project index.** Write the new snippets and vectors in a transaction. Until that transaction succeeds, the previous project index remains available.
+
+### From a question to code
+
+The question goes through the same embedding model as the snippets. PostgreSQL ranks snippets by cosine distance, optionally filtering by project and language. Results include the code, relative file path, symbol, line range, and similarity score.
+
+The implementation creates an HNSW index for vectors with up to 2,000 dimensions. Larger vectors use a sequential scan. A score measures similarity, rather than the probability that a result is correct.
+
+This project provides retrieval context for an assistant; it does not generate an answer itself. When you already know a symbol name, `find_symbol` searches for exact or partial name matches without computing a query embedding.
+
+## Connect an MCP client
+
+The server exposes MCP over streamable HTTP at `http://localhost:8000/mcp`.
+
+For Claude Code:
 
 ```bash
 claude mcp add --transport http code-rag http://localhost:8000/mcp
 ```
 
-Ferramentas expostas:
+| Tool | Parameters | Behavior |
+| --- | --- | --- |
+| `search_code` | `query`, `project?`, `lang?`, `top_k?` | Retrieve snippets by meaning. Defaults to 10 results; accepts 1–50. |
+| `find_symbol` | `symbol`, `project?`, `top_k?` | Find exact or partial symbol names. Defaults to 20 results; accepts 1–100. |
+| `list_projects` | None | List project paths, file and snippet counts, and indexing timestamps. |
 
-| Tool | O que faz |
-|---|---|
-| `search_code(query, project?, lang?, top_k?)` | Busca semântica por linguagem natural |
-| `find_symbol(symbol, project?, top_k?)` | Localiza função/classe/método pelo nome |
-| `list_projects()` | Lista os projetos indexados |
-
-## Embeddings agnósticos
-
-Nenhum modelo é fixo. O provider é escolhido por env var (`.env`), e a **dimensão do vetor é auto-detectada** na primeira indexação:
-
-| Provider | Config | Exemplos de modelo |
-|---|---|---|
-| `fastembed` (padrão — in-process, ONNX/CPU, zero serviços) | — | `BAAI/bge-small-en-v1.5` (leve), `jinaai/jina-embeddings-v2-base-code` (melhor p/ código) |
-| `ollama` (local, requer container/host Ollama) | `OLLAMA_URL` | `nomic-embed-text`, `mxbai-embed-large`, `bge-m3` |
-| `openai` (qualquer API OpenAI-compatible) | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | `text-embedding-3-small`, LM Studio, vLLM, Together… |
-| `gemini` | `GEMINI_API_KEY` | `gemini-embedding-001` |
-
-Trocar de modelo:
+For clients that use stdio, configure the following command with this repository as the working directory:
 
 ```bash
-# edite .env (EMBEDDING_PROVIDER / EMBEDDING_MODEL), depois:
-make reset-db     # embeddings de modelos diferentes são incompatíveis
+make mcp-stdio
+```
+
+Start the infrastructure with `make up` first; the stdio process uses the same database.
+
+## Configuration
+
+Edit `.env` to select an embedding provider and model. Vector dimensions are detected during indexing. The default configuration is:
+
+```dotenv
+COMPOSE_PROFILES=
+EMBEDDING_PROVIDER=fastembed
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+EMBEDDING_BATCH_SIZE=64
+EMBEDDING_CONCURRENCY=4
+```
+
+| Provider | Where embeddings run | Additional configuration |
+| --- | --- | --- |
+| `fastembed` | Inside the server container, using ONNX on the CPU | A model supported by FastEmbed. This is the default. |
+| `ollama` | An Ollama container or an Ollama instance on your host | `OLLAMA_URL`; set `COMPOSE_PROFILES=ollama` for the bundled container. |
+| `openai` | An OpenAI-compatible endpoint, local or hosted | `OPENAI_BASE_URL`, `OPENAI_API_KEY` when required. |
+| `gemini` | The Gemini API | `GEMINI_API_KEY`, optional `GEMINI_OUTPUT_DIM`. |
+
+Hosted providers send embedding inputs to their configured endpoints. Use the default FastEmbed setup or a local endpoint when you want embedding computation to stay on your machine.
+
+### Run Ollama in Docker
+
+```dotenv
+COMPOSE_PROFILES=ollama
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=nomic-embed-text
+OLLAMA_URL=http://ollama:11434
+EMBEDDING_DOC_PREFIX="search_document: "
+EMBEDDING_QUERY_PREFIX="search_query: "
+```
+
+`make up` starts the optional container and pulls the configured model. For Ollama running on the host with Docker Desktop, leave `COMPOSE_PROFILES` empty and use `OLLAMA_URL=http://host.docker.internal:11434`.
+
+### Change the embedding model
+
+All indexed projects in one database share the same model and vector dimensions. To switch models, back up the current index, edit `.env`, and rebuild the index:
+
+```bash
+make backup
+# Edit EMBEDDING_PROVIDER / EMBEDDING_MODEL in .env
+make reset-db
 make up
-make index DIR=…  # reindexe
+make index DIR=/absolute/path/to/your/project
 ```
 
-> **Ollama no host** (em vez do container): no `.env`, deixe `COMPOSE_PROFILES=` vazio e use `OLLAMA_URL=http://host.docker.internal:11434`.
+**`make reset-db` deletes the database volume and all indexed projects.** Reindex every project after switching; vectors from different models are incompatible.
 
-## Como funciona a indexação
+Task prefixes are model-specific. Configure `EMBEDDING_DOC_PREFIX` and `EMBEDDING_QUERY_PREFIX` together when your model needs them, preserving any trailing spaces with quotes. Reindex after changing document prefixes or chunking settings. See [app/config.py](app/config.py) for all settings and [.env.example](.env.example) for provider examples.
 
-1. **Walk**: percorre a pasta ignorando `node_modules`, `.git`, `vendor`, builds, locks e binários.
-2. **Chunking**:
-   - **Python, Go, TypeScript/TSX, JavaScript** → tree-sitter, chunks por símbolo (função, método, classe, struct, interface).
-   - **Qualquer outra linguagem/texto** (Rust, Java, Vue, SQL, Markdown, YAML…) → janela de ~100 linhas com sobreposição.
-3. **Dedup**: chunks cujo conteúdo não mudou reutilizam o embedding do banco (reindexar é barato).
-4. **Embed + gravação**: batches para o provider configurado → `pgvector` com índice HNSW (cosine).
-
-Reindexar é só rodar `make index DIR=…` de novo — o índice do projeto é substituído atomicamente.
-
-## Comandos
+## JSON API
 
 ```bash
-make up          # sobe tudo (build + pull do modelo)
-make index DIR=/caminho [NAME=nome]
-make logs        # logs do servidor
-make ps          # status
-make down        # derruba
-make reset-db    # APAGA o banco (trocou de modelo de embedding? rode isso)
-make backup      # dump comprimido do banco (protege a carga de embeddings)
-make restore FILE=/caminho/backup.dump   # restaura um backup
-make mcp-stdio   # servidor MCP via stdio (alternativa ao HTTP)
+curl --get http://localhost:8000/api/search \
+  --data-urlencode 'q=where is the access token validated?' \
+  --data-urlencode 'project=my-project' \
+  --data-urlencode 'lang=python' \
+  --data-urlencode 'top_k=5'
 ```
 
-## Endpoints da API
+Only `q` is required. `project`, `lang`, and `top_k` are optional.
 
-```
-GET /api/search?q=...&project=...&lang=...&top_k=10
-GET /api/projects
-GET /api/langs
-GET /health
-```
+| Endpoint | Response |
+| --- | --- |
+| `GET /api/search` | Ranked snippets with `project`, `file_path`, `lang`, `kind`, `name`, `start_line`, `end_line`, `score`, and `content`. |
+| `GET /api/projects` | Indexed projects and their statistics. |
+| `GET /api/langs` | Languages present in the index. |
+| `GET /health` | Server and database health. |
 
-## Estrutura
+Returned snippet content is capped at 4,000 characters. `/how` redirects to the interactive documentation at `/`.
 
-```
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `make setup` | Create `.env` from the example if missing. |
+| `make up` | Build and start the Docker services. |
+| `make index DIR=/path [NAME=name]` | Index or refresh a source folder. |
+| `make logs` | Follow server logs. |
+| `make ps` | Show container status. |
+| `make restart` | Restart the server container. |
+| `make down` | Stop the services, keeping their data volumes. |
+| `make backup` | Save a compressed database dump under `./backups`. |
+| `make restore FILE=/path/backup.dump` | Restore a database dump, replacing existing database objects. |
+| `make reset-db` | Delete the database volume. |
+| `make mcp-stdio` | Start an MCP server over stdio. |
+
+Set `BACKUP_DIR=/path/to/backups` to choose a different backup location. PostgreSQL is exposed on host port `5433`; the HTTP server uses port `8000`.
+
+## Project layout
+
+```text
 app/
-├── main.py              # CLI: serve | index | mcp
-├── config.py            # settings via env
-├── db.py                # asyncpg + schema (dimensão auto-detectada)
-├── embeddings/          # camada agnóstica: ollama | openai | gemini
+├── main.py                  # CLI: serve, index, mcp
+├── config.py                # Environment-based settings
+├── db.py                    # Connection pool, schema, vector indexes
+├── embeddings/              # FastEmbed, Ollama, OpenAI-compatible, Gemini
 ├── indexer/
-│   ├── walker.py        # descoberta de arquivos
-│   ├── chunkers/        # tree-sitter + genérico
-│   └── pipeline.py      # walk → chunk → dedup → embed → gravar
-├── search.py            # busca vetorial + símbolos
-├── mcp_server.py        # FastMCP: search_code, find_symbol, list_projects
-└── web/                 # FastAPI + UI estática
+│   ├── walker.py            # File discovery and exclusions
+│   ├── chunkers/            # Tree-sitter and overlapping text windows
+│   └── pipeline.py          # Chunk, reuse, embed, checkpoint, store
+├── search.py                # Semantic retrieval and symbol lookup
+├── mcp_server.py            # MCP tools
+└── web/
+    ├── api.py               # FastAPI routes and MCP mount
+    └── static/
+        ├── index.html      # Interactive documentation
+        ├── search.html     # Local search interface
+        └── assets/         # Shared styles, diagrams, scripts, fonts
+
+design-system/code-rag/MASTER.md  # UI design direction and conventions
+docker-compose.yml              # Database, server, optional Ollama
+Makefile                        # Local workflow commands
 ```
+
+The frontend uses plain HTML, CSS, JavaScript, and SVG, with no frontend build step. Diagrams use native browser animations, support reduced motion, and suspend the opening animation when it is offscreen or the tab is hidden.
+
+## Adapting the implementation
+
+Start with [the indexing pipeline](app/indexer/pipeline.py) to understand how data enters the index, [the embedding interface](app/embeddings/base.py) to add a provider, and [the retrieval queries](app/search.py) to change how results are ranked or filtered. The interactive documentation connects these pieces through examples you can explore locally.
