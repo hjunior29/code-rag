@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Consulta ao índice local do projeto de referência code-rag.">
+<title>Busca local · code-rag</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2317192a'/%3E%3Cpath d='m12 10-6 6 6 6m8-12 6 6-6 6' stroke='%23b5b6ff' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<script>
+try { const theme=localStorage.getItem('coderag-how-theme');document.documentElement.dataset.theme=theme==='light'||theme==='dark'?theme:(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'); } catch (_) {}
+</script>
+<link rel="stylesheet" href="/assets/theme.css">
+<link rel="stylesheet" href="/assets/search.css">
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><defs><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol><symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol></defs></svg>
+<a class="skip" href="#conteudo" data-i18n="skip">Pular para o conteúdo</a>
+<header class="topbar"><nav class="nav container" aria-label="Principal" data-label="navigation"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">&lt;/&gt;</span><span>code<span class="dim">-</span>rag<span style="color:var(--accent)">.</span></span></a><a class="nav-link" href="/" aria-label="← Documentação" data-label="documentation"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6"/></svg><span data-i18n="documentation">← Documentação</span></a><div class="nav-actions"><div class="language" role="group" aria-label="Idioma / Language"><button type="button" data-language="pt" aria-label="Português" aria-pressed="true">PT</button><button type="button" data-language="en" aria-label="English" aria-pressed="false">EN</button></div><button class="icon-button" type="button" id="theme-toggle" aria-label="Ativar tema claro"><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg></button></div></nav></header>
+<main class="container workspace" id="conteudo"><div class="eyebrow" data-i18n="eyebrow">code-rag / BUSCA</div><h1 data-i18n="title">Busca no índice local.</h1><p class="subtitle" data-i18n="subtitle">Faça uma pergunta sobre os projetos que você indexou. Os resultados vêm do servidor em que esta interface está rodando, com arquivo, símbolo e linhas de origem.</p>
+
+<form class="search-panel" id="form"><label for="q" data-i18n="question">Sua pergunta</label><div class="search-row"><input type="text" id="q" name="q" placeholder="Onde o token JWT é validado?" required><button class="submit" id="submit" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="search">Buscar</span></button></div><div class="filters"><div><label for="project" data-i18n="project">Projeto</label><select id="project"><option value="" data-i18n="allProjects">Todos os projetos</option></select></div><div><label for="lang" data-i18n="lang">Linguagem do código</label><select id="lang"><option value="" data-i18n="allLangs">Todas as linguagens</option></select></div><div><label for="topk" data-i18n="limit">Máximo de resultados</label><select id="topk"><option value="10">10</option><option value="20">20</option><option value="50">50</option></select></div></div></form>
+<div class="result-summary"><div id="status" role="status" aria-live="polite"></div></div><div id="results" role="region" aria-label="Resultados da busca" data-label="results"><div class="empty"><span data-i18n="emptyTitle">Seu índice, consultado em linguagem natural.</span><p><span data-i18n="emptyBody">Digite uma pergunta para recuperar os trechos.</span> <a href="/#busca" data-i18n="how">Entender a recuperação →</a></p></div></div>
+</main><footer><div class="container footer-inner"><a href="/" data-i18n="back">Voltar à documentação ↑</a></div></footer>
+<script>
+const $=id=>document.getElementById(id);
+const english={skip:'Skip to content',navigation:'Main navigation',documentation:'← Documentation',eyebrow:'code-rag / SEARCH',title:'Search the local index.',subtitle:'Ask a question about projects you have indexed. Results come from the server running this interface, with the source file, symbol and lines.',hint:'Indexing happens in your terminal:',setup:'View local setup →',question:'Your question',search:'Search',project:'Project',lang:'Code language',limit:'Maximum results',allProjects:'All projects',allLangs:'All languages',scoreHelp:'Score = cosine similarity. It ranks snippets; it is not a probability of correctness.',results:'Search results',emptyTitle:'Your index, queried in natural language.',emptyBody:'Enter a question to retrieve snippets.',how:'Understand retrieval →',footer:'Reference project · runs in your environment',back:'Back to documentation ↑'};
+const portuguese={};document.querySelectorAll('[data-i18n]').forEach(el=>portuguese[el.dataset.i18n]=el.textContent);document.querySelectorAll('[data-label]').forEach(el=>portuguese[el.dataset.label]=el.getAttribute('aria-label'));
+let language='pt';try{language=localStorage.getItem('coderag-how-language')==='en'?'en':'pt';}catch(_){}
+const t=key=>(language==='en'?english:portuguese)[key];const localized=values=>values[language==='en'?1:0];const save=(key,value)=>{try{localStorage.setItem(key,value);}catch(_){}};
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let state={type:'ready'},hits=[],hasSearched=false,requestNumber=0;
+function renderStatus(){
+ const messages={ready:localized(['Pronto para consultar o índice.','Ready to query the index.']),noProjects:localized(['Nenhum projeto indexado. Adicione uma pasta usando make index no terminal.','No indexed projects. Add a folder using make index in your terminal.']),searching:localized(['Buscando no índice…','Searching the index…']),filterError:localized(['Não foi possível carregar os filtros. Verifique se o servidor está em execução.','Could not load filters. Check that the server is running.']),error:localized(['Erro na busca: ','Search error: '])+(state.error||''),done:localized([`${hits.length} resultado(s) em ${state.ms} ms`,`${hits.length} result(s) in ${state.ms} ms`])};
+ $('status').textContent=messages[state.type];$('submit').disabled=state.type==='searching';$('results').setAttribute('aria-busy',String(state.type==='searching'));
+}
+function renderResults(){
+ $('results').setAttribute('role',state.type==='done'&&hits.length?'list':'region');
+ if(!hasSearched)return;
+ if(state.type==='searching'){ $('results').replaceChildren();return; }
+ if(state.type==='error'){ $('results').innerHTML=`<div class="empty">${esc(localized(['Não foi possível concluir a consulta. Veja o erro acima e tente novamente.','Could not complete the query. Check the error above and try again.']))}</div>`;return; }
+ if(!hits.length){$('results').innerHTML=`<div class="empty">${esc(localized(['Nenhum trecho encontrado.','No snippets found.']))}<p>${esc(localized(['Tente outra pergunta ou amplie os filtros.','Try another question or broaden your filters.']))}</p></div>`;return;}
+ $('results').innerHTML=hits.map(h=>{
+ const score=Number(h.score);const formatted=Number.isFinite(score)?score.toLocaleString(language==='en'?'en-US':'pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}):'—';
+ return `<article class="hit" role="listitem"><div class="hit-header"><span class="hit-path">${esc(h.file_path)}:${esc(h.start_line)}–${esc(h.end_line)}</span><span class="badge">${esc(h.project)}</span><span class="badge">${esc(h.lang)}</span><span class="badge">${esc(h.kind)}${h.name?' · '+esc(h.name):''}</span><span class="score">score ${formatted}</span></div><pre>${esc(h.content)}</pre></article>`;
+ }).join('');
+}
+function renderTheme(){const dark=document.documentElement.dataset.theme==='dark';$('theme-toggle').setAttribute('aria-label',localized(dark?['Ativar tema claro','Switch to light theme']:['Ativar tema escuro','Switch to dark theme']));$('theme-toggle').querySelector('use').setAttribute('href',dark?'#i-sun':'#i-moon');}
+function setLanguage(value){language=value;document.documentElement.lang=value==='en'?'en':'pt-BR';document.title=localized(['Busca local · code-rag','Local search · code-rag']);document.querySelector('meta[name=description]').content=localized(['Consulta ao índice local do projeto de referência code-rag.','Query the local index of the code-rag reference project.']);document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.label)));document.querySelectorAll('[data-language]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.language===language)));$('q').placeholder=localized(['Onde o token JWT é validado?','Where is the JWT token validated?']);save('coderag-how-language',language);renderTheme();renderStatus();renderResults();}
+document.querySelectorAll('[data-language]').forEach(button=>button.addEventListener('click',()=>setLanguage(button.dataset.language)));
+$('theme-toggle').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';save('coderag-how-theme',document.documentElement.dataset.theme);renderTheme();});
+async function getJSON(url){const response=await fetch(url);if(!response.ok)throw new Error(await response.text());return response.json();}
+async function loadFilters(){
+ try{const [projects,langs]=await Promise.all([getJSON('/api/projects'),getJSON('/api/langs')]);
+ for(const project of projects){const option=document.createElement('option');option.value=project.name;option.textContent=`${project.name} (${project.chunk_count} chunks)`;$('project').append(option);}
+ for(const lang of langs){const option=document.createElement('option');option.value=lang;option.textContent=lang;$('lang').append(option);}
+ if(!projects.length&&state.type==='ready'){state={type:'noProjects'};renderStatus();}
+ }catch(_){if(state.type==='ready'){state={type:'filterError'};renderStatus();}}
+}
+async function doSearch(event){
+ event.preventDefault();const q=$('q').value.trim();if(!q||state.type==='searching')return;
+ const current=++requestNumber;hasSearched=true;hits=[];state={type:'searching'};renderStatus();renderResults();
+ const params=new URLSearchParams({q,top_k:$('topk').value});if($('project').value)params.set('project',$('project').value);if($('lang').value)params.set('lang',$('lang').value);
+ const started=performance.now();
+ try{const data=await getJSON('/api/search?'+params);if(current!==requestNumber)return;hits=data;state={type:'done',ms:Math.round(performance.now()-started)};}
+ catch(error){if(current!==requestNumber)return;state={type:'error',error:error.message};}
+ renderStatus();renderResults();
+}
+$('form').addEventListener('submit',doSearch);setLanguage(language);loadFilters();
+</script>
+</body>
+</html>

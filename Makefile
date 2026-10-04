@@ -22,7 +22,7 @@ help:
 	@echo "  make backup                        dump do banco em $(BACKUP_DIR)"
 	@echo "  make restore FILE=x.dump           restaura um backup"
 	@echo ""
-	@echo "  UI:  http://localhost:8000    MCP: http://localhost:8000/mcp"
+	@echo "  Docs: http://localhost:8000    Busca: http://localhost:8000/search    MCP: http://localhost:8000/mcp"
 
 setup:
 	@test -f .env || (cp .env.example .env && echo "✓ .env criado a partir de .env.example")
@@ -37,7 +37,8 @@ endif
 endif
 	@echo ""
 	@echo "✓ code-rag no ar:"
-	@echo "    UI:   http://localhost:8000"
+	@echo "    Docs: http://localhost:8000"
+	@echo "    Busca: http://localhost:8000/search"
 	@echo "    MCP:  http://localhost:8000/mcp"
 	@echo ""
 	@echo "  Próximo passo: make index DIR=/caminho/da/sua/base-de-codigo"

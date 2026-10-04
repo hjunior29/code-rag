@@ -4,7 +4,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import db, search
 from app.mcp_server import mcp
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="code-rag", lifespan=lifespan)
 app.mount("/mcp", mcp_app)
+app.mount("/assets", StaticFiles(directory=_STATIC / "assets"), name="assets")
 
 
 @app.get("/health")
@@ -59,6 +61,11 @@ async def index() -> FileResponse:
     return FileResponse(_STATIC / "index.html")
 
 
+@app.get("/search")
+async def search_page() -> FileResponse:
+    return FileResponse(_STATIC / "search.html")
+
+
 @app.get("/how")
-async def how_it_works() -> FileResponse:
-    return FileResponse(_STATIC / "how.html")
+async def how_it_works() -> RedirectResponse:
+    return RedirectResponse(url="/", status_code=307)

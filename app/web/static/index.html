@@ -1,214 +1,76 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>code-rag</title>
-<style>
-  :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --green: #3fb950;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    min-height: 100vh;
-  }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
-  h1 { font-size: 28px; margin-bottom: 6px; }
-  h1 .accent { color: var(--accent); }
-  .subtitle { color: var(--muted); margin-bottom: 28px; font-size: 14px; }
-  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .how-link {
-    color: var(--accent);
-    text-decoration: none;
-    font-size: 13px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    border-radius: 999px;
-    padding: 7px 16px;
-    white-space: nowrap;
-    margin-top: 4px;
-  }
-  .how-link:hover { border-color: var(--accent); }
-  .search-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  input[type=text] {
-    flex: 1;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    color: var(--text);
-    font-size: 16px;
-    outline: none;
-  }
-  input[type=text]:focus { border-color: var(--accent); }
-  button {
-    background: var(--accent);
-    color: #0d1117;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 24px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  button:hover { filter: brightness(1.1); }
-  .filters { display: flex; gap: 10px; margin-bottom: 24px; }
-  select {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-size: 13px;
-  }
-  .status { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  .hit {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 14px;
-    overflow: hidden;
-  }
-  .hit-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    flex-wrap: wrap;
-  }
-  .hit-path { color: var(--accent); font-family: ui-monospace, monospace; }
-  .badge {
-    background: #21262d;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 2px 10px;
-    font-size: 11px;
-    color: var(--muted);
-  }
-  .score { margin-left: auto; color: var(--green); font-weight: 600; }
-  pre {
-    padding: 14px;
-    overflow-x: auto;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 12.5px;
-    line-height: 1.5;
-    max-height: 340px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .empty { text-align: center; color: var(--muted); padding: 60px 0; }
-  footer { margin-top: 40px; color: var(--muted); font-size: 12px; text-align: center; }
-  footer code { background: var(--panel); padding: 2px 6px; border-radius: 4px; }
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="header-row">
-    <div>
-      <h1>code-<span class="accent">rag</span></h1>
-      <p class="subtitle">Busca semântica local sobre suas bases de código</p>
+<!doctype html>
+<html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><meta name="description" content="Como funciona o code-rag: indexação local, embeddings, recuperação por similaridade e configuração."><title>Como funciona · code-rag</title><script>
+(() => {
+  try {
+    const theme = localStorage.getItem('coderag-how-theme');
+    document.documentElement.dataset.theme = theme === 'light' || theme === 'dark' ? theme : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  } catch (_) {}
+})();
+</script><link rel="stylesheet" href="/assets/theme.css"><link rel="stylesheet" href="/assets/documentation.css"><script src="/assets/documentation.js" defer></script></head><body><svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><defs><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol><symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z"/></symbol></defs></svg><a class="skip" href="#conteudo" data-i18n="skip">Pular para o conteúdo</a><nav class="topnav" aria-label="Navegação da documentação" data-label="navigation"><a class="brand" href="/">code-rag</a><div class="language" role="group" aria-label="Idioma / Language"><button type="button" data-language="pt" aria-label="Português" aria-pressed="true">PT</button><button type="button" data-language="en" aria-label="English" aria-pressed="false">EN</button></div><button type="button" class="theme-button" id="theme-toggle" aria-label="Ativar tema claro"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-sun"/></svg></button><a class="search-link" href="/search" data-i18n="nav.search">Busca ↗</a></nav><main id="conteudo"><section class="scene" id="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+
+        <h1 class="title" data-i18n="hero.title">Como funciona o code-rag</h1>
+        <p class="deck" data-i18n="hero.description">O code-rag recorta arquivos, calcula embeddings e recupera trechos por similaridade. Uma implementação local para entender esse processo e adaptar ao seu próprio projeto.</p>
+        <div class="hero-demo"><span class="q-label" data-i18n="hero.queryLabel">pergunta</span><span class="q" data-i18n="hero.query">onde o token é validado?</span><span class="arrow">→</span><span class="a">validate_token</span></div>
+      </div>
+      <div>
+        <figure class="hero-svg-wrap">
+          <svg id="hero-svg" viewBox="0 0 560 440" role="img" aria-label="Trechos de código atravessam o modelo e chegam ao índice" data-label="diagram.flow">
+            <defs><pattern id="encoder-grid" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="5" height="5" rx="1" fill="var(--accent)" opacity=".55"/></pattern></defs>
+            <path class="hero-route" d="M120 116C215 116 165 218 272 218S350 334 449 334"/>
+            <path class="hero-packet" d="M120 116C215 116 165 218 272 218S350 334 449 334" pathLength="100"/>
+            <g id="hero-payload" aria-hidden="true"><rect x="-18" y="-12" width="36" height="24" rx="4" fill="var(--accent)"/><path d="M-10 -4H10M-10 3H4" fill="none" stroke="var(--accent-ink)" stroke-width="2"/></g>
+            <g class="hero-fragments">
+              <rect x="38" y="45" width="137" height="94" rx="8" class="fragment-back" transform="rotate(-9 107 92)"/>
+              <rect x="48" y="57" width="137" height="94" rx="8" class="fragment-back" transform="rotate(5 117 104)"/>
+              <rect x="43" y="65" width="137" height="94" rx="8" class="fragment-front"/>
+              <path d="M60 89H88M60 102H156M60 115H137M60 128H147" class="fragment-lines"/>
+              <text x="42" y="187" data-i18n="diagram.code">1 · Trechos de código</text>
+            </g>
+            <g class="hero-encoder">
+              <path d="M221 188L269 165L328 190L280 215Z" fill="var(--bg-2)" stroke="var(--line)"/>
+              <path d="M221 204L269 181L328 206L280 231Z" fill="var(--bg-2)" stroke="var(--accent)"/>
+              <path d="M221 220L269 197L328 222L280 247Z" fill="var(--bg-2)" stroke="var(--line)"/>
+              <rect x="244" y="190" width="56" height="56" fill="url(#encoder-grid)" transform="rotate(-24 272 218)"/>
+              <text x="206" y="281" data-i18n="diagram.model">2 · Modelo de embedding</text>
+            </g>
+            <g class="hero-network">
+              <path d="M398 306L449 334L481 284M449 334L501 357L481 284M449 334L415 375L501 357M398 306L381 353L415 375" fill="none" stroke="var(--line)"/>
+              <circle cx="398" cy="306" r="5" fill="var(--accent)"/><circle cx="481" cy="284" r="5" fill="var(--blue)"/><circle cx="501" cy="357" r="5" fill="var(--blue)"/><circle cx="415" cy="375" r="5" fill="var(--gold)"/><circle cx="381" cy="353" r="5" fill="var(--accent)"/>
+              <circle class="hero-arrival" cx="449" cy="334" r="14" fill="var(--bg-0)" stroke="var(--accent)"/>
+              <circle cx="449" cy="334" r="5" fill="var(--accent)"/>
+              <text x="385" y="418" data-i18n="diagram.index">3 · Índice de vetores</text>
+            </g>
+          </svg>
+
+        </figure>
+      </div>
     </div>
-    <a class="how-link" href="/how">Como funciona →</a>
   </div>
+  <a href="#indexacao" class="scroll-hint" data-i18n="hero.scroll">↓ como funciona</a>
+</section>
+<section class="scene" id="indexacao"><div class="container"><div class="scene-side"><div><h2 class="heading" data-i18n="index.title">Da pasta ao índice</h2><p class="deck" data-i18n="index.description">O comando de indexação lê sua pasta e prepara os trechos para futuras consultas. A pasta é montada somente para leitura.</p><ol class="flow-steps"><li><span class="number">01</span><div><h3 data-i18n="index.walk">Descobrir arquivos</h3><p data-i18n="index.walkBody">Ignora dependências, builds, locks e binários. Textos indexáveis de até 512 KB seguem.</p></div></li><li id="chunking"><span class="number">02</span><div><h3 data-i18n="index.chunk">Recortar o código</h3><p data-i18n="index.chunkBody">Tree-sitter extrai símbolos em Python, Go, Java, TypeScript e JavaScript. Outros textos usam janelas de 100 linhas com 15 de sobreposição, por padrão.</p></div></li><li><span class="number">03</span><div><h3 data-i18n="index.reuse">Reutilizar e vetorizar</h3><p data-i18n="index.reuseBody">O hash do texto identifica embeddings reutilizáveis. O modelo calcula vetores para os trechos novos ou alterados, em batches.</p></div></li><li><span class="number">04</span><div><h3 data-i18n="index.store">Salvar no Postgres</h3><p data-i18n="index.storeBody">Uma transação substitui o índice do projeto. Cada trecho preserva seu arquivo, símbolo, linhas e embedding.</p></div></li></ol></div><div><div class="command-block"><div class="head"><span class="title" data-i18n="index.commands">No seu terminal</span></div><div class="body"><pre>make up
+make index DIR=/path/to/project</pre></div></div></div></div></div></section>
+<section class="scene" id="vector-scene"><div class="container">
+<h2 class="heading" data-i18n="vectors.title">De texto a significado</h2>
+<p class="deck" data-i18n="vectors.description">O modelo transforma um trecho em uma lista de números: seu embedding. Descrições diferentes sobre o mesmo assunto podem ganhar representações parecidas. Selecione uma frase para acompanhar o resultado.</p>
+<div class="viz embedding-lab"><div class="embedding-input"><h3 data-i18n="vectors.input">Escolha o texto de entrada</h3><div id="embed-options"></div><div class="embedding-signature"><span data-i18n="vectors.signature">Alguns números do vetor</span><output id="embed-values"></output></div></div><div class="embedding-output"><svg id="embed-map" viewBox="0 0 440 310" role="img" aria-label="Duas descrições de autenticação próximas e uma de arquivos distante" data-label="vectors.diagram"></svg><div class="embedding-insight" id="embed-insight" role="status"></div></div></div>
 
-  <form class="search-row" id="form">
-    <input type="text" id="q" placeholder="Pergunte em linguagem natural… ex.: onde o token JWT é validado?" autofocus>
-    <button type="submit">Buscar</button>
-  </form>
+</div></section>
+<section class="scene" id="cosine"><div class="container"><h2 class="heading" data-i18n="cosine.title">Comparar vetores pelo ângulo</h2><p class="deck" data-i18n="cosine.description">Quanto mais parecidos os vetores da pergunta e do trecho, maior a chance de o trecho tratar do que você procura. Gire o ponto pelo círculo inteiro: o ângulo muda a similaridade e ajuda a entender a comparação. </p><div class="viz"><div class="viz-pad"><div class="cos-grid"><div><svg class="cos-svg" id="cos-svg" viewBox="0 0 460 380" role="img" aria-label="Dois vetores com ângulo ajustável" data-label="cosine.diagram"><defs><marker id="arr-a" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--accent)"/></marker><marker id="arr-b" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--accent-2)"/></marker></defs><line x1="25" y1="210" x2="425" y2="210" stroke="var(--line)"/><line x1="230" y1="30" x2="230" y2="350" stroke="var(--line)"/><circle cx="230" cy="210" r="130" fill="none" stroke="var(--line)" stroke-dasharray="2 5"/><text x="420" y="230">x</text><text x="244" y="35">y</text><path id="cos-arc" fill="none" stroke="var(--purple)" stroke-width="2"/><line id="cos-a" x1="230" y1="210" x2="327" y2="123" stroke="var(--accent)" stroke-width="2.5" marker-end="url(#arr-a)"/><line x1="230" y1="210" x2="360" y2="210" stroke="var(--accent-2)" stroke-width="2.5" marker-end="url(#arr-b)"/><circle id="cos-handle" cx="327" cy="123" r="10" fill="var(--accent)" stroke="var(--bg-0)" stroke-width="2"/><circle cx="230" cy="210" r="3" fill="var(--text)"/><text x="26" y="365" fill="var(--accent)" data-i18n="cosine.query">a · pergunta</text><text x="350" y="365" fill="var(--accent-2)" data-i18n="cosine.chunk">b · trecho</text></svg></div><div class="cos-readout"><div class="label" data-i18n="cosine.score">similaridade</div><div class="big" id="cos-big">0,74</div><div class="formula">cos(θ) = (a · b) / (‖a‖ × ‖b‖)</div><div class="stats"><div class="row"><span class="k" data-i18n="cosine.angle">ângulo</span><span class="v" id="cos-ang">42°</span></div><div class="row"><span class="k">a · b</span><span class="v" id="cos-dot">+0,74</span></div><div class="row"><span class="k">‖a‖ · ‖b‖</span><span class="v">1 · 1</span></div></div><label class="cos-control" for="cos-angle"><span data-i18n="cosine.control">Gire o ponto ou ajuste o ângulo de 0° a 360°</span><input type="range" id="cos-angle" min="0" max="360" value="42"></label><div class="verdict" id="cos-verdict" role="status"></div></div></div></div></div></div></section>
+<section class="scene" id="space"><div class="container"><span id="busca"></span><h2 class="heading" data-i18n="space.title">Recuperar os trechos próximos</h2><p class="deck" data-i18n="space.description">A pergunta passa pelo mesmo modelo usado na indexação. Seu vetor é comparado aos vetores dos trechos, e os mais próximos formam o resultado. Clique no mapa ou escolha um assunto.</p><div class="viz"><div class="space-wrap"><svg class="scatter" id="scatter-svg" viewBox="0 0 900 420" role="img" aria-label="Mapa ilustrativo de trechos por assunto" data-label="space.diagram"></svg><div class="scatter-tip" id="scatter-tip"></div><div class="scatter-hint" data-i18n="space.hint">clique para posicionar a pergunta</div><div class="scatter-legend" id="scatter-legend"></div></div></div><div class="query-options" role="group" aria-label="Assuntos da pergunta" data-label="space.questions"><button type="button" data-query="0" aria-pressed="true" data-i18n="space.auth">Autenticação</button><button type="button" data-query="1" aria-pressed="false" data-i18n="space.cache">Cache</button><button type="button" data-query="2" aria-pressed="false" data-i18n="space.files">Arquivos</button></div><p class="sr-only" id="map-summary" role="status"></p></div></section>
+<section class="scene" id="hnsw"><div class="container">
+<h2 class="heading" data-i18n="hnsw.title">Encontrar caminhos no grafo</h2>
+<p class="deck" data-i18n="hnsw.description">O HNSW conecta vetores em camadas. A busca começa com poucos atalhos, desce para conexões mais detalhadas e procura vizinhos da pergunta. Explore cada etapa ou acompanhe o percurso completo.</p>
+<div class="viz graph-lab"><div class="viz-heading"><div class="graph-steps" role="group" aria-label="Etapas da busca no grafo" data-label="hnsw.steps"><button type="button" data-graph-step="0" aria-pressed="false" data-i18n="hnsw.shortcut">1. Pegar um atalho</button><button type="button" data-graph-step="1" aria-pressed="false" data-i18n="hnsw.refine">2. Refinar a região</button><button type="button" data-graph-step="2" aria-pressed="true" data-i18n="hnsw.neighbors">3. Buscar vizinhos</button></div><button class="replay" type="button" id="trace-search" data-i18n="hnsw.trace">Ver percurso →</button></div>
+<svg id="hnsw-svg" viewBox="0 0 760 340" role="img" aria-label="Grafo ramificado em três camadas, do atalho aos vizinhos" data-label="hnsw.graphDiagram"></svg><div class="graph-explanation"><p id="graph-explanation" role="status"></p></div></div>
 
-  <div class="filters">
-    <select id="project"><option value="">Todos os projetos</option></select>
-    <select id="lang"><option value="">Todas as linguagens</option></select>
-    <select id="topk">
-      <option value="10">10 resultados</option>
-      <option value="20">20 resultados</option>
-      <option value="50">50 resultados</option>
-    </select>
-  </div>
-
-  <div class="status" id="status"></div>
-  <div id="results"></div>
-
-  <footer>MCP disponível em <code>http://localhost:8000/mcp</code></footer>
-</div>
-
-<script>
-const $ = (id) => document.getElementById(id);
-
-function esc(s) {
-  return (s ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-async function loadFilters() {
-  try {
-    const [projects, langs] = await Promise.all([
-      fetch("/api/projects").then((r) => r.json()),
-      fetch("/api/langs").then((r) => r.json()),
-    ]);
-    for (const p of projects) {
-      $("project").insertAdjacentHTML("beforeend",
-        `<option value="${esc(p.name)}">${esc(p.name)} (${p.chunk_count} chunks)</option>`);
-    }
-    for (const l of langs) {
-      $("lang").insertAdjacentHTML("beforeend", `<option value="${esc(l)}">${esc(l)}</option>`);
-    }
-    if (projects.length === 0) {
-      $("status").textContent = "Nenhum projeto indexado ainda. Rode: make index DIR=/caminho/do/projeto";
-    }
-  } catch { /* servidor ainda subindo */ }
-}
-
-async function doSearch(ev) {
-  ev.preventDefault();
-  const q = $("q").value.trim();
-  if (!q) return;
-  $("status").textContent = "Buscando…";
-  $("results").innerHTML = "";
-  const params = new URLSearchParams({ q, top_k: $("topk").value });
-  if ($("project").value) params.set("project", $("project").value);
-  if ($("lang").value) params.set("lang", $("lang").value);
-  const t0 = performance.now();
-  try {
-    const resp = await fetch("/api/search?" + params);
-    if (!resp.ok) throw new Error(await resp.text());
-    const hits = await resp.json();
-    const ms = Math.round(performance.now() - t0);
-    $("status").textContent = `${hits.length} resultado(s) em ${ms}ms`;
-    if (hits.length === 0) {
-      $("results").innerHTML = '<div class="empty">Nada encontrado.</div>';
-      return;
-    }
-    $("results").innerHTML = hits.map((h) => `
-      <div class="hit">
-        <div class="hit-header">
-          <span class="hit-path">${esc(h.file_path)}:${h.start_line}-${h.end_line}</span>
-          <span class="badge">${esc(h.project)}</span>
-          <span class="badge">${esc(h.lang)}</span>
-          <span class="badge">${esc(h.kind)}${h.name ? " · " + esc(h.name) : ""}</span>
-          <span class="score">${(h.score * 100).toFixed(1)}%</span>
-        </div>
-        <pre>${esc(h.content)}</pre>
-      </div>`).join("");
-  } catch (err) {
-    $("status").textContent = "Erro: " + err.message;
-  }
-}
-
-$("form").addEventListener("submit", doSearch);
-loadFilters();
-</script>
-</body>
-</html>
+</div></section>
+<section class="scene" id="compare"><div class="container"><span id="comparacao"></span><h2 class="heading" data-i18n="compare.title">Mesma consulta, critérios diferentes</h2><p class="deck" data-i18n="compare.description">Quando você conhece o nome, uma busca literal resolve bem. Quando descreve um comportamento, embeddings podem aproximar a pergunta do código. As duas formas são úteis.</p><div class="query-options" role="group" aria-label="Casos da comparação" data-label="compare.cases"><button type="button" data-compare="0" aria-pressed="true" data-i18n="compare.natural">Descrever o comportamento</button><button type="button" data-compare="1" aria-pressed="false" data-i18n="compare.exact">Buscar o nome exato</button></div><div class="viz"><div class="viz-pad"><div class="cmp-grid"><div class="cmp literal"><div class="cmp-head"><div class="title"><span class="badge" data-i18n="compare.literal">texto literal</span><code>grep -Fn</code></div></div><div class="cmp-body" id="grep-cmp-body"></div></div><div class="cmp semantic"><div class="cmp-head"><div class="title"><span class="badge">code-rag</span><code>search_code()</code></div></div><div class="cmp-body" id="rag-cmp-body"></div></div></div></div></div></div></section>
+<section class="scene" id="setup"><div class="container"><h2 class="heading" data-i18n="setup.title">Executar na sua máquina</h2><p class="deck" data-i18n="setup.description">Clone o repositório, prepare o ambiente e indexe uma pasta sua. Use o terminal ou copie o prompt abaixo para um assistente ajudar na configuração.</p><div class="setup-grid"><div class="setup-block"><h3 class="subheading" data-i18n="setup.environment">Preparar e indexar</h3><p data-i18n="setup.requirements">Git, Make e Docker com Compose. No Windows, use WSL2. Execute os comandos na pasta do repositório.</p><pre>make setup
+make up
+make index DIR=/path/to/project</pre><p class="setup-link"><a class="plain-link" href="https://github.com/hjunior29/code-rag" target="_blank" rel="noopener noreferrer" data-i18n="setup.repo">Repositório e instruções ↗</a></p></div><div class="setup-block"><h3 class="subheading" data-i18n="setup.verify">Conferir e conectar</h3><p data-i18n="setup.verifyBody">Verifique /health e /api/projects. A busca em /search consulta os trechos que você indexou. Um agente pode usar o mesmo índice pelo MCP.</p><pre>claude mcp add --transport http code-rag \
+  http://localhost:8000/mcp</pre><p class="setup-link"><a class="plain-link" href="/search" data-i18n="setup.search">Abrir a busca local →</a></p></div></div><details class="setup-details"><summary data-i18n="setup.promptTitle">Prompt para configurar o projeto com um assistente</summary><div class="prompt-content"><div class="prompt-fields"><div><label for="setup-os" data-i18n="setup.os">Sistema operacional</label><select id="setup-os"><option value="auto" data-i18n="setup.auto">Identificar com o assistente</option><option value="macOS">macOS</option><option value="Linux">Linux</option><option value="Windows (WSL2)">Windows / WSL2</option></select></div></div><label class="sr-only" for="setup-prompt" data-i18n="setup.promptLabel">Prompt de configuração</label><textarea id="setup-prompt" readonly spellcheck="false"></textarea><div class="prompt-footer"><button type="button" class="copy-button" id="copy-prompt" data-i18n="setup.copy">Copiar prompt</button></div><p id="copy-status" role="status" class="inline-note"></p></div></details></div></section>
+</main><footer>code-rag<div class="links"><a href="/search" data-i18n="footer.search">Busca local</a><a href="#setup" data-i18n="footer.setup">Configuração</a><a href="https://github.com/hjunior29/code-rag" target="_blank" rel="noopener noreferrer" data-i18n="footer.repo">Repositório ↗</a></div></footer></body></html>
